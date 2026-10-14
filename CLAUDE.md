@@ -23,7 +23,9 @@ stage.
 ## Repository Structure
 
 ```
-cmd/raumfeld-connect/  entry point (main.go)
+cmd/raumfeld-connect/  entry point (main.go); --host <addr> prints zones and renderer state, read-only
+internal/host/         Raumfeld host HTTP API client (session handling, getZones, listDevices)
+internal/upnp/         UPnP device description + SOAP client, read-only AVTransport/RenderingControl wrappers
 internal/version/      build-info package (Version/Commit/BuildDate, set via ldflags)
 script/                extract-release-notes.sh
 .github/workflows/     ci.yml (lint/test/build/audit), codeql.yml, release-on-tag.yml, dependabot-auto-merge.yml
@@ -80,6 +82,9 @@ device before code depends on it.
   `getZones` returns `<zoneConfig>` XML (zones → rooms → renderers, with
   `powerState` and `spotifyConnect`), `listDevices` returns every UPnP device
   with its `location` URL. Every response carries an `updateID` header.
+  A request without the prefix answers `307` to an absolute URL
+  `/<new-session>/<path>`; an arbitrary, never-issued UUID as prefix is
+  accepted (200).
   Not yet tested: long-polling with `updateID`, and any state-changing call.
 - **UPnP ports are dynamic.** Discover via `listDevices` or SSDP; never
   hard-code a port. Unicast `M-SEARCH` to the host answered; the One S did
@@ -94,10 +99,22 @@ device before code depends on it.
     `SetNextAVTransportURI`, `SetVolumeDB`, balance, filter,
     `GetLineInStreamURL`, `SetDeviceSetting`, and a
     `urn:schemas-raumfeld-com:service:RaumfeldGenerator:1` service.
+- **Control URLs differ per renderer kind** (zone: `/RenderingService/Control`,
+  `/TransportService/Control`; room: `/RenderingControl/ctrl`,
+  `/AVTransport/ctrl`) and descriptions carry no `URLBase`, with SCPD paths
+  both with and without a leading slash. Always resolve URLs from the
+  description; a guessed room control URL answered `501`.
+- **Room renderer `GetPositionInfo`** declares only `TrackDuration` and
+  `RelTime` in its SCPD and answers `NOT_IMPLEMENTED` for both.
+  `GetMediaInfo` exists only on the zone renderer.
+- **SOAP faults** arrive as HTTP 500 with `s:Fault` / `UPnPError`
+  (unknown action: `401 Invalid Action`). `CurrentMute` measured as `0`
+  only.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station
   buttons).
 - **Privacy**: device descriptions carry room names, IP addresses and the
-  MAC address (`serialNumber`). Scrub captures before they go into
+  MAC address (`serialNumber`); TuneIn stream URIs carry the MAC as
+  `serial=`, and transport metadata reflects listening history. Scrub captures before they go into
   `testdata/`; raw captures belong in the git-ignored `/captures/`.

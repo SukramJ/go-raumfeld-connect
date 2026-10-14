@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<devices>
+ <device udn='uuid:285430b6-3aab-40ec-93df-6007a39f08de' type='urn:schemas-raumfeld-com:device:RaumfeldDevice:1' location='http://192.0.2.65:50828/285430b6-3aab-40ec-93df-6007a39f08de.xml'>Teufel Raumfeld Device</device>
+ <device udn='uuid:2e5ed377-45bd-4f23-978d-6011c1b16e6b' type='urn:schemas-raumfeld-com:device:RaumfeldDevice:1' location='http://192.0.2.69:53493/2e5ed377-45bd-4f23-978d-6011c1b16e6b.xml'>Teufel Raumfeld Device</device>
+ <device udn='uuid:39bcee0b-1644-46d3-9ba8-ffb284bcfe21' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.67:54184/39bcee0b-1644-46d3-9ba8-ffb284bcfe21.xml'>Speaker Bathroom</device>
+ <device udn='uuid:5a21e60d-10dc-48cf-8a8b-fb3c8428954a' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.65:51756/5a21e60d-10dc-48cf-8a8b-fb3c8428954a.xml'>Office</device>
+ <device udn='uuid:671ac853-ef0d-4797-b48e-9ef000490c4b' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.68:54775/671ac853-ef0d-4797-b48e-9ef000490c4b.xml'>Speaker Office</device>
+ <device udn='uuid:84bfa0ca-b228-436b-8fc6-1a86a6cc8cdc' type='urn:schemas-raumfeld-com:device:RaumfeldDevice:1' location='http://192.0.2.67:49484/84bfa0ca-b228-436b-8fc6-1a86a6cc8cdc.xml'>Teufel Raumfeld Device</device>
+ <device udn='uuid:9a3ff63f-e18a-481a-9701-8297b6b30f76' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.65:54572/9a3ff63f-e18a-481a-9701-8297b6b30f76.xml'>Terrace</device>
+ <device udn='uuid:a351a46b-9d5c-4a8a-abae-695108d44cb7' type='urn:schemas-upnp-org:device:MediaServer:1' location='http://192.0.2.65:49544/a351a46b-9d5c-4a8a-abae-695108d44cb7.xml'>Raumfeld MediaServer</device>
+ <device udn='uuid:a649c977-4b7c-45fa-ae9f-b59e7645e8b5' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.65:53447/a649c977-4b7c-45fa-ae9f-b59e7645e8b5.xml'>Bathroom</device>
+ <device udn='uuid:d63d237a-b084-40eb-b084-1c8b79b550b4' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.69:56239/d63d237a-b084-40eb-b084-1c8b79b550b4.xml'>Speaker Terrace</device>
+ <device udn='uuid:d7dacfbf-7743-4d51-b341-95f8da36d94b' type='urn:schemas-upnp-org:device:MediaRenderer:1' location='http://192.0.2.65:60764/d7dacfbf-7743-4d51-b341-95f8da36d94b.xml'>Speaker Living Room</device>
+ <device udn='uuid:e2fc4edc-48b1-45d8-a634-5037df910172' type='urn:schemas-raumfeld-com:device:RaumfeldDevice:1' location='http://192.0.2.68:55225/e2fc4edc-48b1-45d8-a634-5037df910172.xml'>Teufel Raumfeld Device</device>
+ <device udn='uuid:e3fcdadf-1e22-4420-a812-b0f65585246a' type='urn:schemas-raumfeld-com:device:ConfigDevice:1' location='http://192.0.2.65:51302/e3fcdadf-1e22-4420-a812-b0f65585246a.xml'>Raumfeld ConfigDevice</device>
+</devices>

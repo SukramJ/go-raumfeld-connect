@@ -70,8 +70,8 @@ in Apple Home / Alexa / Google Home. No cloud.
    response via a hijacked connection and compare).
 2. Audible latency not measured (`PLAYING` is a state, not sound): click +
    microphone measurement in the room.
-3. Host API: long-polling with `updateID`, zone membership calls
-   (a room outside every zone has no zone renderer).
+3. Host API: long-polling with `updateID` (zone membership: measured,
+   see `CLAUDE.md`).
 4. UPnP eventing (GENA `SUBSCRIBE`) instead of polling — callback port must
    be reachable from the speakers like the stream port.
 5. shairport-sync: stdout arrives at playback pace, but writes nothing
@@ -96,9 +96,10 @@ in Apple Home / Alexa / Google Home. No cloud.
    `stream.Live`) plays AirPlay 2 on a zone, with the iPhone volume
    mapped to the zone (`--max-volume`); the zone is taken over only while
    an AirPlay session is active and restored after it (incl. manual
-   standby). Open: one receiver per zone in a daemon, putting a room
-   without zone back into one (host API, not measured), the Debian LXC
-   install script.
+   standby). `--airplay "A,B"` runs one receiver per room (ports from
+   `--airplay-port`); a room in no zone gets a zone of its own for the
+   session (`connectRoomsToZone` / `dropRoomJob`, measured). Open: rooms
+   grouped in one zone compete for it; the Debian LXC install script.
 5. Originally planned: implement a `stream.Source` reading from
    shairport-sync, one instance per zone, and map volume / start / stop to
    the zone (`SetVolume`, `Play`, `Stop`). The source must fill gaps with

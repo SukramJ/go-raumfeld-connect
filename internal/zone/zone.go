@@ -22,8 +22,16 @@ type Zone struct {
 	Rendering upnp.Service
 }
 
+// NoZoneError reports a room that exists but is in no zone, so it has no
+// zone renderer.
+type NoZoneError struct {
+	Room host.Room
+}
+
+func (e *NoZoneError) Error() string { return fmt.Sprintf("zone: room %q is in no zone", e.Room.Name) }
+
 // ForRoom finds the zone containing the room named name. A room outside
-// every zone has no zone renderer and is reported as an error.
+// every zone is reported as *NoZoneError.
 func ForRoom(ctx context.Context, c *host.Client, hc *http.Client, name string) (*Zone, error) {
 	zc, err := c.GetZones(ctx)
 	if err != nil {
@@ -40,7 +48,7 @@ func ForRoom(ctx context.Context, c *host.Client, hc *http.Client, name string) 
 	if z == nil {
 		for _, r := range zc.UnassignedRooms {
 			if r.Name == name {
-				return nil, fmt.Errorf("zone: room %q is in no zone", name)
+				return nil, &NoZoneError{Room: r}
 			}
 		}
 		return nil, fmt.Errorf("zone: no room %q", name)

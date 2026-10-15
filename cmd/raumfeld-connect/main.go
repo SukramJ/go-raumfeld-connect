@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/SukramJ/go-raumfeld-connect/internal/airplay"
@@ -39,9 +40,9 @@ func main() {
 	port := flag.Int("stream-port", 59317, "TCP port the renderer fetches the stream from")
 	advertise := flag.String("advertise", "", "address the renderer reaches this machine on (default: route towards --host)")
 	volume := flag.Int("volume", -1, "zone volume while streaming, 0..100 (default: unchanged)")
-	airplayRoom := flag.String("airplay", "", "with --host: receive AirPlay 2 for this room's zone until interrupted, then restore the zone")
+	airplayRoom := flag.String("airplay", "", "with --host: comma-separated rooms; receive AirPlay 2 for each room's zone until interrupted")
 	shairport := flag.String("shairport-sync", "shairport-sync", "shairport-sync binary (built with --with-airplay-2 --with-stdout)")
-	airplayPort := flag.Int("airplay-port", 7000, "RTSP port of the AirPlay receiver")
+	airplayPort := flag.Int("airplay-port", 7000, "RTSP port of the first AirPlay receiver; further rooms count up")
 	maxVolume := flag.Int("max-volume", 100, "zone volume at full AirPlay volume, 0..100")
 	hookSock := flag.String("airplay-hook", "", "internal: called by shairport-sync to pass a session event to this socket")
 	activeTimeout := flag.Duration("airplay-idle", 10*time.Second, "how long after AirPlay stops the zone is kept before it is restored")
@@ -83,11 +84,11 @@ func main() {
 	}
 	switch {
 	case *airplayRoom != "":
-		err = runAirPlay(logger, airplay.Config{
-			Bin: *shairport, Name: *airplayRoom, Port: *airplayPort, Buffer: *airplayBuffer,
+		err = runAirPlay(logger, splitRooms(*airplayRoom), airplay.Config{
+			Bin: *shairport, Port: *airplayPort, Buffer: *airplayBuffer,
 			ActiveTimeout: *activeTimeout,
 		}, playOptions{
-			host: *hostAddr, room: *airplayRoom, port: *port, advertise: *advertise, volume: *volume,
+			host: *hostAddr, port: *port, advertise: *advertise, volume: *volume, formZone: true,
 		}, *maxVolume)
 	case *room != "":
 		ctx, cancel := context.WithTimeout(context.Background(), *toneFor+30*time.Second)
@@ -176,4 +177,15 @@ func valueOr[T any](v T, err error) string {
 		return "error(" + err.Error() + ")"
 	}
 	return fmt.Sprint(v)
+}
+
+// splitRooms splits a comma-separated room list, dropping blanks.
+func splitRooms(s string) []string {
+	var rooms []string
+	for r := range strings.SplitSeq(s, ",") {
+		if r = strings.TrimSpace(r); r != "" {
+			rooms = append(rooms, r)
+		}
+	}
+	return rooms
 }

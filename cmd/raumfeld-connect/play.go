@@ -25,7 +25,9 @@ type playOptions struct {
 	duration  time.Duration
 	port      int
 	advertise string
-	volume    int // -1 = leave unchanged
+	volume    int    // -1 = leave unchanged
+	path      string // stream path on port, default /stream.wav
+	formZone  bool   // put a room that is in no zone into a zone of its own
 }
 
 // target is a room's zone and the address its renderer fetches our stream
@@ -34,18 +36,29 @@ type target struct {
 	hc   *http.Client
 	host *host.Client
 	zone *zone.Zone
-	url  string
+	// formed is the room as it was before we put it into a zone of its
+	// own, nil if it already had one.
+	formed *host.Room
+	url    string
 }
 
 // resolve looks up the room's zone now; zone membership can change while
 // the bridge runs.
-func resolve(ctx context.Context, o playOptions) (*target, error) {
+func resolve(ctx context.Context, log *slog.Logger, o playOptions) (*target, error) {
 	hc := &http.Client{Timeout: 5 * time.Second}
 	c, err := host.New("http://"+net.JoinHostPort(o.host, strconv.Itoa(host.DefaultPort)), hc)
 	if err != nil {
 		return nil, err
 	}
 	z, err := zone.ForRoom(ctx, c, hc, o.room)
+	var (
+		nz     *zone.NoZoneError
+		formed *host.Room
+	)
+	if errors.As(err, &nz) && o.formZone {
+		formed = &nz.Room
+		z, err = formZone(ctx, c, hc, nz.Room, log)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +68,36 @@ func resolve(ctx context.Context, o playOptions) (*target, error) {
 			return nil, err
 		}
 	}
-	url := fmt.Sprintf("http://%s/stream.wav", net.JoinHostPort(addr, strconv.Itoa(o.port)))
-	return &target{hc: hc, host: c, zone: z, url: url}, nil
+	path := o.path
+	if path == "" {
+		path = "/stream.wav"
+	}
+	url := fmt.Sprintf("http://%s%s", net.JoinHostPort(addr, strconv.Itoa(o.port)), path)
+	return &target{hc: hc, host: c, zone: z, url: url, formed: formed}, nil
+}
+
+// formZone puts the room into a zone of its own and waits until getZones
+// and listDevices show its zone renderer.
+func formZone(ctx context.Context, c *host.Client, hc *http.Client, room host.Room, log *slog.Logger) (*zone.Zone, error) {
+	start := time.Now()
+	if err := c.ConnectRoomToNewZone(ctx, room.UDN); err != nil {
+		return nil, err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(300 * time.Millisecond):
+		}
+		z, err := zone.ForRoom(ctx, c, hc, room.Name)
+		if err == nil {
+			log.Info("play.zone_formed", slog.String("zone", z.UDN), slog.Duration("after", time.Since(start).Round(10*time.Millisecond)))
+			return z, nil
+		}
+		if time.Since(start) > 10*time.Second {
+			return nil, fmt.Errorf("room %q: no zone 10 s after connectRoomsToZone: %w", room.Name, err)
+		}
+	}
 }
 
 // saved is a zone's state before we took it over.
@@ -76,6 +117,9 @@ func (t *target) save(ctx context.Context, log *slog.Logger) (*saved, error) {
 		return nil, err
 	}
 	s := &saved{media: media, volume: vol, power: t.zone.Room.PowerState}
+	if t.formed != nil {
+		s.power = t.formed.PowerState
+	}
 	log.Info("play.orig", slog.String("uri", s.media.CurrentURI), slog.Int("volume", s.volume), slog.String("power", s.power))
 	return s, nil
 }
@@ -95,6 +139,11 @@ func (t *target) restore(ctx context.Context, log *slog.Logger, s *saved) {
 		errs = append(errs, upnp.EnterAutomaticStandby(rctx, t.hc, t.zone.Transport, t.zone.Room.UDN))
 	case "MANUAL_STANDBY":
 		errs = append(errs, upnp.EnterManualStandby(rctx, t.hc, t.zone.Transport, t.zone.Room.UDN))
+	}
+	// Standby goes through the zone renderer, so the room leaves the zone
+	// last (measured in this order, 2026-10-15).
+	if t.formed != nil {
+		errs = append(errs, t.host.DropRoom(rctx, t.zone.Room.UDN))
 	}
 	log.Info("play.restored", slog.Any("err", errors.Join(errs...)))
 }
@@ -175,11 +224,11 @@ func (t *target) watch(ctx context.Context, log *slog.Logger, start, deadline ti
 	return nil
 }
 
-// serve runs the stream server for src until the returned stop is called.
-func serve(log *slog.Logger, port int, src stream.Source) (stop func()) {
+// serve runs the stream server until the returned stop is called.
+func serve(log *slog.Logger, port int, h http.Handler) (stop func()) {
 	srv := &http.Server{
 		Addr:              net.JoinHostPort("", strconv.Itoa(port)),
-		Handler:           stream.NewHandler(src, log),
+		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
@@ -193,7 +242,7 @@ func serve(log *slog.Logger, port int, src stream.Source) (stop func()) {
 // playTone streams a paced test tone to the room's zone and restores the
 // zone afterwards.
 func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
-	t, err := resolve(ctx, o)
+	t, err := resolve(ctx, log, o)
 	if err != nil {
 		return err
 	}
@@ -201,7 +250,7 @@ func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
 	if err != nil {
 		return err
 	}
-	stop := serve(log, o.port, stream.NewTone(440, 0.1, o.duration))
+	stop := serve(log, o.port, stream.NewHandler(stream.NewTone(440, 0.1, o.duration), log))
 	defer stop()
 	defer t.restore(ctx, log, s)
 

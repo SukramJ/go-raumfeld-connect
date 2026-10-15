@@ -5,21 +5,28 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/SukramJ/go-raumfeld-connect/internal/airplay"
+	"github.com/SukramJ/go-raumfeld-connect/internal/stream"
 	"github.com/SukramJ/go-raumfeld-connect/internal/upnp"
 )
 
-// runAirPlay runs an AirPlay receiver until SIGINT or SIGTERM. The zone is
-// taken over when a session becomes active and restored when it ends, so
-// the zone is left alone while nobody plays.
-func runAirPlay(log *slog.Logger, ac airplay.Config, o playOptions, maxVolume int) error {
+// runAirPlay runs one AirPlay receiver per room until SIGINT or SIGTERM,
+// on consecutive RTSP ports from ac.Port; the streams share one HTTP port
+// under per-room paths. Each room's zone is taken over when its session
+// becomes active and restored when it ends, so a zone is left alone while
+// nobody plays to it. Rooms grouped in one zone would compete for it.
+func runAirPlay(log *slog.Logger, rooms []string, ac airplay.Config, o playOptions, maxVolume int) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	exe, err := os.Executable()
@@ -27,13 +34,35 @@ func runAirPlay(log *slog.Logger, ac airplay.Config, o playOptions, maxVolume in
 		return err
 	}
 	ac.Hook = strconv.Quote(exe) + " -airplay-hook"
-	rcv, err := airplay.Start(ctx, ac, log)
-	if err != nil {
-		return err
+
+	mux := http.NewServeMux()
+	defer serve(log, o.port, mux)()
+	var wg sync.WaitGroup
+	errs := make([]error, len(rooms))
+	for i, room := range rooms {
+		c := ac
+		c.Name, c.Port = room, ac.Port+i
+		l := log.With(slog.String("room", room))
+		rcv, err := airplay.Start(ctx, c, l)
+		if err != nil {
+			stop()
+			wg.Wait()
+			return errors.Join(err, errors.Join(errs...))
+		}
+		ro := o
+		ro.room, ro.path = room, fmt.Sprintf("/airplay/%d.wav", i)
+		mux.Handle(ro.path, stream.NewHandler(rcv.Source, l))
+		wg.Go(func() { errs[i] = runBridge(ctx, l, rcv, ro, maxVolume) })
 	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
+// runBridge follows one receiver's session events until ctx ends or
+// shairport-sync exits.
+func runBridge(ctx context.Context, log *slog.Logger, rcv *airplay.Receiver, o playOptions, maxVolume int) error {
 	exited := make(chan error, 1)
 	go func() { exited <- rcv.Wait() }()
-	defer serve(log, o.port, rcv.Source)()
 	go logStats(ctx, log, rcv)
 
 	b := &bridge{log: log, o: o, volume: o.volume}
@@ -72,7 +101,7 @@ func (b *bridge) takeOver(ctx context.Context) {
 	if b.t != nil {
 		return
 	}
-	t, err := resolve(ctx, b.o)
+	t, err := resolve(ctx, b.log, b.o)
 	if err != nil {
 		b.log.Error("airplay.zone", slog.String("err", err.Error()))
 		return

@@ -51,7 +51,10 @@ is never touched. Supports `linux/amd64`, `linux/arm64` and `linux/arm`.
 
 Network: the machine needs a fixed LAN address. The Raumfeld host fetches
 the audio from it on TCP 59317, AirPlay senders reach it on TCP 7000 and
-upwards, and mDNS must reach the senders (an mDNS repeater across subnets).
+upwards and on UDP 319/320 (PTP timing), and mDNS must reach the senders
+(an mDNS repeater across subnets). The installer disables IPv6 in the
+container: with IPv6 on, an iPhone connected over IPv6 but sent its clock
+over IPv4, and shairport-sync then played nothing (`KEEP_IPV6=1` keeps it).
 
 After install:
 

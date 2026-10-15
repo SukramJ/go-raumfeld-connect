@@ -26,6 +26,10 @@
 # The wizard prompts read from /dev/tty so they work even when the script
 # itself is being piped through stdin.
 #
+# IPv6 is disabled in the container (KEEP_IPV6=1 keeps it): AirPlay 2 only
+# plays when the sender's clock (PTP) and its control connection use the
+# same address family, and senders mixed IPv6 and IPv4.
+#
 # Network: the container needs a bridged LAN address that stays fixed. The
 # Raumfeld host fetches the audio from it (TCP 59317), AirPlay senders
 # reach it on TCP 7000+ and the ports shairport-sync negotiates, and mDNS
@@ -53,6 +57,7 @@ SHAIRPORT_TAG="${SHAIRPORT_TAG:-5.6}"
 
 VERSION="${1:-}"
 BINARY="${BINARY:-}"
+KEEP_IPV6="${KEEP_IPV6:-0}"
 
 # --- ansi helpers -----------------------------------------------------------
 
@@ -125,6 +130,30 @@ apt-get install -y -qq --no-install-recommends \
 	libavutil-dev libavcodec-dev libavformat-dev >/dev/null
 systemctl enable --now avahi-daemon >/dev/null
 ok "packages installed, avahi-daemon running"
+
+# --- IPv6 -------------------------------------------------------------------
+
+# shairport-sync tells nqptp to take the AirPlay clock only from the address
+# the RTSP connection came from (rtsp.c, set_client_as_ptp_clock). Measured
+# 2026-10-15 in a Debian 13 LXC: the iPhone connected over IPv6 but sent PTP
+# over IPv4, nqptp dropped it ("No NQPTP master clock") and nothing played;
+# with IPv6 disabled in the container, AirPlay and PTP both use IPv4 and
+# playback works. KEEP_IPV6=1 skips this.
+SYSCTL_FILE=/etc/sysctl.d/90-go-raumfeld-connect-ipv6.conf
+if [ "$KEEP_IPV6" = "1" ]; then
+	warn "KEEP_IPV6=1 — leaving IPv6 on; AirPlay may connect but stay silent"
+else
+	cat > "$SYSCTL_FILE" <<'SYSCTL'
+# Written by go-raumfeld-connect install.sh. AirPlay 2 via shairport-sync
+# only plays when the sender's PTP clock arrives from the address its RTSP
+# connection used; with IPv6 on, senders mixed IPv6 (RTSP) and IPv4 (PTP).
+# Delete this file and reboot to turn IPv6 back on.
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+SYSCTL
+	sysctl -q -p "$SYSCTL_FILE" || warn "could not apply ${SYSCTL_FILE} now — it applies on the next boot"
+	ok "IPv6 disabled (${SYSCTL_FILE})"
+fi
 
 # --- nqptp + shairport-sync -------------------------------------------------
 

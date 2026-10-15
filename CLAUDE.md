@@ -221,6 +221,14 @@ device before code depends on it.
   `MANUAL_STANDBY`. `AUTOMATIC_STANDBY` wakes on `Play` alone.
 - **Zone UDNs change**: re-forming a room's zone in the app gave it a new
   zone UDN; resolve the zone per use, never cache it.
+- **AirPlay 2 and IPv6** (measured 2026-10-15, Debian 13 LXC in another
+  IPv6 /64 than the iPhone): RTSP came over IPv6, PTP over IPv4 (tcpdump);
+  shairport-sync passes nqptp only the RTSP peer address
+  (`set_client_as_ptp_clock`, rtsp.c), so it logged "No NQPTP master
+  clock", output nothing, and the zone played silence while volume hooks
+  worked. Disabling IPv6 in the container fixed it. On the dev host (same
+  /64 as the iPhone) it worked with IPv6 on — cause of the difference not
+  verified.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station

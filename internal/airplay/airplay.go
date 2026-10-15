@@ -37,12 +37,13 @@ import (
 // measured output peaked near -39 dBFS (2026-10-15), inaudible at zone
 // volume 27; loudness belongs to the zone. shairport-sync still runs
 // run_this_when_volume_is_set with the AirPlay volume appended
-// (player.c:5345 calls it before checking ignore_volume_control), and the
-// hook forwards it to Receiver.Volume.
+// (player.c:5345 calls it before checking ignore_volume_control). The
+// hooks — volume and the active state, which starts when play begins and
+// ends ActiveTimeout after play ends — reach Receiver.Events.
 const config = `general = {
 	output_backend = "stdout";
 	ignore_volume_control = "yes";%s
-};
+};%s
 stdout = {
 	output_rate = 44100;
 	output_format = "S16_LE";
@@ -59,20 +60,39 @@ type Config struct {
 	// Buffer bounds the audio held between shairport-sync and the renderer.
 	Buffer time.Duration
 
-	// Hook, if set, is the command shairport-sync runs on a volume change,
-	// followed by the socket path, "--" and the volume; it must call
-	// SendVolume. Quote paths with spaces: shairport-sync splits it with
-	// popt.
+	// Hook, if set, is the command shairport-sync runs on a session event,
+	// followed by the socket path, "--", the event kind and, for a volume,
+	// the volume; it must call SendEvent. Quote paths with spaces:
+	// shairport-sync splits it with popt.
 	Hook string
+	// ActiveTimeout is how long after play ends the session stays active
+	// (shairport-sync's active_state_timeout); 0 keeps its default.
+	ActiveTimeout time.Duration
+}
+
+// EventKind names a session hook.
+type EventKind string
+
+// Session hooks.
+const (
+	Active   EventKind = "active"   // play began, the session is active
+	Inactive EventKind = "inactive" // ActiveTimeout passed after play ended
+	Volume   EventKind = "volume"   // the sender changed the volume
+)
+
+// Event is one hook call.
+type Event struct {
+	Kind   EventKind
+	Volume float64 // for Volume: -30 (quietest) .. 0, -144 for mute
 }
 
 // Receiver is a running shairport-sync instance.
 type Receiver struct {
 	Source *stream.Live
-	// Volume carries the latest AirPlay volume when Config.Hook is set.
-	Volume <-chan float64
+	// Events carries the hook calls when Config.Hook is set.
+	Events <-chan Event
 
-	ln   net.Listener // volume hook socket, nil without Config.Hook
+	ln   net.Listener // hook socket, nil without Config.Hook
 	cmd  *exec.Cmd
 	dir  string
 	done chan struct{} // closed when stderr is drained
@@ -85,23 +105,32 @@ func Start(ctx context.Context, c Config, log *slog.Logger) (*Receiver, error) {
 		return nil, err
 	}
 	var (
-		hook string
-		vol  chan float64
-		ln   net.Listener
+		general, session string
+		events           chan Event
+		ln               net.Listener
 	)
 	if c.Hook != "" {
-		sock := filepath.Join(dir, "volume.sock")
+		sock := filepath.Join(dir, "hook.sock")
 		var lc net.ListenConfig
 		if ln, err = lc.Listen(ctx, "unix", sock); err != nil {
 			_ = os.RemoveAll(dir)
 			return nil, err
 		}
-		hook = fmt.Sprintf("\n\trun_this_when_volume_is_set = %q;", c.Hook+" "+strconv.Quote(sock)+" --")
-		vol = make(chan float64, 1)
-		go acceptVolume(ctx, ln, vol, log)
+		cmd := func(k EventKind) string {
+			return strconv.Quote(c.Hook + " " + strconv.Quote(sock) + " -- " + string(k))
+		}
+		general = "\n\trun_this_when_volume_is_set = " + cmd(Volume) + ";"
+		session = "\nsessioncontrol = {\n\trun_this_before_entering_active_state = " + cmd(Active) +
+			";\n\trun_this_after_exiting_active_state = " + cmd(Inactive) + ";"
+		if c.ActiveTimeout > 0 {
+			session += fmt.Sprintf("\n\tactive_state_timeout = %.1f;", c.ActiveTimeout.Seconds())
+		}
+		session += "\n};\n"
+		events = make(chan Event, 16)
+		go acceptEvents(ctx, ln, events, log)
 	}
 	conf := filepath.Join(dir, "shairport-sync.conf")
-	if err := os.WriteFile(conf, fmt.Appendf(nil, config, hook), 0o600); err != nil {
+	if err := os.WriteFile(conf, fmt.Appendf(nil, config, general, session), 0o600); err != nil {
 		closeListener(ln)
 		_ = os.RemoveAll(dir)
 		return nil, err
@@ -131,7 +160,7 @@ func Start(ctx context.Context, c Config, log *slog.Logger) (*Receiver, error) {
 
 	r := &Receiver{
 		Source: stream.NewLive(stdout, stream.CD, c.Buffer),
-		Volume: vol,
+		Events: events,
 		ln:     ln,
 		cmd:    cmd,
 		dir:    dir,
@@ -161,7 +190,9 @@ func (r *Receiver) logStderr(stderr io.Reader, log *slog.Logger) {
 	sc := bufio.NewScanner(stderr)
 	for sc.Scan() {
 		line := sessionLine(sc.Text())
-		if strings.Contains(line, "Connection ") || strings.Contains(line, "Playback stopped") {
+		// "fail to set player volume … Principal conn is NULL" repeats for
+		// every volume step outside a session and is noise here.
+		if strings.Contains(line, "Connection ") && !strings.Contains(line, "fail to set player volume") {
 			log.Info("airplay.session", slog.String("msg", line))
 		} else {
 			log.Debug("airplay.log", slog.String("msg", line))
@@ -179,11 +210,12 @@ func sessionLine(s string) string {
 	return s
 }
 
-// SendVolume is the hook side: it passes shairport-sync's volume argument
-// to the receiver listening on sock.
-func SendVolume(ctx context.Context, sock, volume string) error {
-	if _, err := strconv.ParseFloat(volume, 64); err != nil {
-		return fmt.Errorf("volume %q: %w", volume, err)
+// SendEvent is the hook side: args are what shairport-sync passed after
+// "--" — the event kind and, for a volume, the volume.
+func SendEvent(ctx context.Context, sock string, args []string) error {
+	line := strings.Join(args, " ")
+	if _, err := parseEvent(line); err != nil {
+		return err
 	}
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "unix", sock)
@@ -191,13 +223,27 @@ func SendVolume(ctx context.Context, sock, volume string) error {
 		return err
 	}
 	defer func() { _ = conn.Close() }()
-	_, err = io.WriteString(conn, volume+"\n")
+	_, err = io.WriteString(conn, line+"\n")
 	return err
 }
 
-// acceptVolume reads one volume per hook connection and keeps only the
-// latest in vol.
-func acceptVolume(ctx context.Context, ln net.Listener, vol chan float64, log *slog.Logger) {
+func parseEvent(line string) (Event, error) {
+	f := strings.Fields(line)
+	switch {
+	case len(f) == 1 && (f[0] == string(Active) || f[0] == string(Inactive)):
+		return Event{Kind: EventKind(f[0])}, nil
+	case len(f) == 2 && f[0] == string(Volume):
+		v, err := strconv.ParseFloat(f[1], 64)
+		if err != nil {
+			return Event{}, fmt.Errorf("volume %q: %w", f[1], err)
+		}
+		return Event{Kind: Volume, Volume: v}, nil
+	}
+	return Event{}, fmt.Errorf("hook event %q", line)
+}
+
+// acceptEvents reads one event per hook connection into events.
+func acceptEvents(ctx context.Context, ln net.Listener, events chan<- Event, log *slog.Logger) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -206,18 +252,14 @@ func acceptVolume(ctx context.Context, ln net.Listener, vol chan float64, log *s
 		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 		line, err := bufio.NewReader(conn).ReadString('\n')
 		_ = conn.Close()
-		v, perr := strconv.ParseFloat(strings.TrimSpace(line), 64)
+		ev, perr := parseEvent(line)
 		if err != nil || perr != nil {
-			log.Warn("airplay.volume_hook", slog.Any("err", errors.Join(err, perr)))
+			log.Warn("airplay.hook", slog.Any("err", errors.Join(err, perr)))
 			continue
 		}
-		log.Debug("airplay.volume", slog.Float64("airplay", v))
+		log.Debug("airplay.event", slog.String("kind", string(ev.Kind)), slog.Float64("volume", ev.Volume))
 		select {
-		case <-vol: // drop the stale value
-		default:
-		}
-		select {
-		case vol <- v:
+		case events <- ev:
 		case <-ctx.Done():
 			return
 		}

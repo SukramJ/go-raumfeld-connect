@@ -42,26 +42,37 @@ func TestZoneVolume(t *testing.T) {
 	}
 }
 
-func TestVolumeHookRoundTrip(t *testing.T) {
+func TestHookRoundTrip(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	sock := filepath.Join(t.TempDir(), "v.sock")
+	sock := filepath.Join(t.TempDir(), "h.sock")
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "unix", sock)
 	if err != nil {
 		t.Skip("unix sockets unavailable:", err)
 	}
 	defer func() { _ = ln.Close() }()
-	vol := make(chan float64, 1)
-	go acceptVolume(ctx, ln, vol, slog.New(slog.DiscardHandler))
+	events := make(chan Event, 1)
+	go acceptEvents(ctx, ln, events, slog.New(slog.DiscardHandler))
 
-	if err := SendVolume(ctx, sock, "-12.500000"); err != nil {
-		t.Fatal(err)
+	for _, c := range []struct {
+		args []string
+		want Event
+	}{
+		{[]string{"active"}, Event{Kind: Active}},
+		{[]string{"volume", "-12.500000"}, Event{Kind: Volume, Volume: -12.5}},
+		{[]string{"inactive"}, Event{Kind: Inactive}},
+	} {
+		if err := SendEvent(ctx, sock, c.args); err != nil {
+			t.Fatal(err)
+		}
+		if got := <-events; got != c.want {
+			t.Fatalf("%v: event = %+v, want %+v", c.args, got, c.want)
+		}
 	}
-	if v := <-vol; v != -12.5 {
-		t.Fatalf("volume = %v, want -12.5", v)
-	}
-	if err := SendVolume(ctx, sock, "loud"); err == nil {
-		t.Fatal("SendVolume accepted a non-number")
+	for _, bad := range [][]string{{"volume", "loud"}, {"volume"}, {"stop"}, nil} {
+		if err := SendEvent(ctx, sock, bad); err == nil {
+			t.Errorf("SendEvent(%q) accepted", bad)
+		}
 	}
 }

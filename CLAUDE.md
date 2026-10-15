@@ -202,7 +202,18 @@ device before code depends on it.
 - **AirPlay → zone end to end** (`--airplay`, 2026-10-15, iPhone → One S):
   music audible; delay from a track change on the iPhone to sound in the
   room ~2 s by ear (owner's estimate, not measured); volume changes via the
-  hook → `SetVolume` heard "immediately".
+  hook → `SetVolume` heard "immediately". The zone is taken over on
+  shairport-sync's active state and restored after `active_state_timeout`
+  (10 s) without play; `Play` → `PLAYING` 1.6–1.9 s per takeover.
+- **Manual standby** (measured 2026-10-15, zone renderer): in
+  `MANUAL_STANDBY`, `Play` leaves the transport `STOPPED` with status
+  "Please turn on a device." and the stream is never fetched — also when
+  sent ~50 ms after `LeaveStandby`. `getZones` showed `ACTIVE` ~0.8–0.9 s
+  after `LeaveStandby`; `Play` after that works. `EnterManualStandby`
+  (`InstanceID`, `Room` = room UDN) answers 200 and restores
+  `MANUAL_STANDBY`. `AUTOMATIC_STANDBY` wakes on `Play` alone.
+- **Zone UDNs change**: re-forming a room's zone in the app gave it a new
+  zone UDN; resolve the zone per use, never cache it.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station

@@ -1,3 +1,19 @@
+# Version 0.1.1 (2026-10-15)
+
+## What's Changed
+
+### Fixed
+
+- **AirPlay plays in a container with IPv6.** An iPhone connected over IPv6
+  but sent its PTP clock over IPv4; shairport-sync only accepts the clock
+  from the control connection's address, so nothing played while volume
+  and start/stop still worked. `script/install.sh` now disables IPv6 in the
+  container (`/etc/sysctl.d/90-go-raumfeld-connect-ipv6.conf`;
+  `KEEP_IPV6=1` keeps it).
+- **The installer downloads the right release on Debian.** Sourcing
+  `/etc/os-release` overwrote the version with Debian's "13 (trixie)" and
+  broke the download URL (#13).
+
 # Version 0.1.0 (2026-10-15)
 
 ## What's Changed

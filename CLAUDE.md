@@ -13,16 +13,20 @@ stage.
 
 - **Language**: Go 1.27+ (see `go.mod` / CI `GO_VERSION`).
 - **Module path**: `github.com/SukramJ/go-raumfeld-connect`.
-- **License: MIT.** Every Go source file starts with:
+- **License: Apache-2.0**, the same licence as `go-fabric`, which this
+  project will embed. Every Go source file starts with the two lines below,
+  enforced by `license_header_test.go`; Makefile and scripts carry the same
+  lines as `#` comments:
   ```go
-  // SPDX-License-Identifier: MIT
-  // Copyright (C) 2026 SukramJ
+  // SPDX-License-Identifier: Apache-2.0
+  // Copyright (C) 2026 SukramJ.
   ```
 - **Deployment**: one static binary (`CGO_ENABLED=0`), `raumfeld-connect`.
 
 ## Repository Structure
 
 ```
+doc.go                 module doc; license_header_test.go guards the licence header
 cmd/raumfeld-connect/  entry point (main.go); --host <addr> prints zones and renderer state, read-only
 internal/host/         Raumfeld host HTTP API client (session handling, getZones, listDevices)
 internal/upnp/         UPnP device description + SOAP client, read-only AVTransport/RenderingControl wrappers

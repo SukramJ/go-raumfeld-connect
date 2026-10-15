@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: MIT
-# Copyright (C) 2026 SukramJ
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2026 SukramJ.
 #
 # Extract the changelog.md section for the given version and emit it
 # as a self-contained release-notes payload on stdout. Single source

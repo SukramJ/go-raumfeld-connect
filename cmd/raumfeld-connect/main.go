@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-// Copyright (C) 2026 SukramJ
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 SukramJ.
 
 // Command raumfeld-connect bridges Teufel Raumfeld multiroom speakers to
 // other ecosystems. It talks to the speakers locally — over UPnP AV and the

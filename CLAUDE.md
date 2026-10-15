@@ -125,7 +125,8 @@ device before code depends on it.
   A request without the prefix answers `307` to an absolute URL
   `/<new-session>/<path>`; an arbitrary, never-issued UUID as prefix is
   accepted (200).
-  Not yet tested: long-polling with `updateID`, and any state-changing call.
+  Not yet tested: long-polling with `updateID`, and any state-changing host
+  API call (e.g. zone membership).
 - **UPnP ports are dynamic.** Discover via `listDevices` or SSDP; never
   hard-code a port. Unicast `M-SEARCH` to the host answered; the One S did
   not answer unicast `M-SEARCH`.
@@ -150,6 +151,30 @@ device before code depends on it.
 - **SOAP faults** arrive as HTTP 500 with `s:Fault` / `UPnPError`
   (unknown action: `401 Invalid Action`). `CurrentMute` measured as `0`
   only.
+- **Write actions on the zone renderer** (measured 2026-10-15, zone with one
+  One S): `SetVolume`, `SetAVTransportURI`, `Play`, `Stop` answer 200 and
+  take effect. Empty `CurrentURIMetaData` is accepted; the renderer then
+  builds its own metadata. `LeaveStandby` / `EnterAutomaticStandby` take
+  `Room` = the room UDN; verified through `powerState` in `getZones`
+  (`EnterAutomaticStandby` showed after ~10 s).
+- **The host fetches stream URLs**, not the room's device: connections came
+  from the host's address for a zone playing on a One S. The fetch starts at
+  `SetAVTransportURI`, before `Play`. Requests send `Icy-MetaData: 1` and no
+  User-Agent; MP4/AAC is read with `Range` requests (file end first).
+- **Unreachable stream URL fails silently**: with the daemon's port blocked,
+  `SetAVTransportURI` and `Play` still answered 200 and the transport stayed
+  `TRANSITIONING` with no error. The speakers' network must be able to open
+  TCP connections to the daemon's (configurable) stream port.
+- **Formats**: MP3, WAV (PCM 16 bit), FLAC, AAC/m4a files and an endless
+  live WAV stream (no Content-Length) all reached `PLAYING`; `Play` →
+  `PLAYING` took ~1.5 s for MP3 and ~0.6 s for the others. The zone
+  renderer's `GetProtocolInfo` sink list includes `audio/mpeg`, `audio/wav`,
+  `audio/flac`, `audio/mp4`. Files end in `STOPPED` on their own.
+- **Read-ahead**: fed as fast as it reads, the renderer pulled audio until it
+  held ~15.5 s ahead of real time, then read at real-time rate; `PLAYING`
+  after ~1.5 s. Fed at real-time pace it cannot read ahead, and `PLAYING`
+  came after ~0.6 s. The audible delay was not measured — `PLAYING` is a
+  transport state, not sound.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station

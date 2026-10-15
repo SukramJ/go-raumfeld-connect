@@ -18,5 +18,9 @@
   calls with UPnP fault decoding, `GetVolume`, `GetMute`,
   `GetTransportInfo`, `GetPositionInfo`, `GetMediaInfo`). Tests run against
   scrubbed captures from real devices.
+- Write wrappers in `internal/upnp`, each measured on a zone renderer
+  first: `SetVolume` (0..100 per SCPD), `SetAVTransportURI`, `Play`,
+  `Stop`, `LeaveStandby`, `EnterAutomaticStandby`. A `live`-tagged test
+  round-trips a real renderer's volume (`RAUMFELD_LIVE_RENDERER`).
 - `raumfeld-connect --host <addr>` prints the zone configuration and each
   zone renderer's volume, mute, transport state and current URI.

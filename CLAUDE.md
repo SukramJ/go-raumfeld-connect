@@ -27,10 +27,11 @@ stage.
 
 ```
 doc.go                 module doc; license_header_test.go guards the licence header
-cmd/raumfeld-connect/  entry point; --host prints zones/renderer state; --play-tone <room> streams a test tone, then restores the zone
+cmd/raumfeld-connect/  entry point; --host prints zones/renderer state; --play-tone <room> streams a test tone, --airplay <room> bridges AirPlay 2 to the zone; both restore the zone
+internal/airplay/      shairport-sync subprocess (stdout PCM) and its volume hook
 internal/host/         Raumfeld host HTTP API client (session handling, getZones, listDevices)
 internal/upnp/         UPnP device description + SOAP client, measured read and write wrappers
-internal/stream/       live PCM-as-WAV HTTP handler (one client at a time) and a paced test-tone Source
+internal/stream/       live PCM-as-WAV HTTP handler (one client at a time), a paced test-tone Source and Live (paced, gap-filling)
 internal/zone/         room name → zone renderer (getZones + listDevices + description)
 internal/version/      build-info package (Version/Commit/BuildDate, set via ldflags)
 script/                extract-release-notes.sh
@@ -189,8 +190,19 @@ device before code depends on it.
   that format. stdout arrives at playback pace (0.97–1.03 × 176400 B/s per
   second) after a 1.8× first second; resuming from pause gave one 1.6×
   second. During pause it writes **nothing** (no silence), and after
-  "Playback stopped" stdout stays open with no EOF. One instance only;
-  several instances on one nqptp not tested.
+  "Playback stopped" stdout stays open with no EOF. Two instances with
+  distinct names and ports ran concurrently on one nqptp, each with its own
+  clock `/nqptp-<name>`.
+- **shairport-sync volume**: by default it attenuates in software; with
+  `default airplay volume is -24` the output peaked at 352/32767
+  (~-39 dBFS), inaudible at zone volume 27. With
+  `ignore_volume_control = "yes"` the output stays full scale and
+  `run_this_when_volume_is_set` still runs with the AirPlay volume
+  (-30..0, -144 mute; called in `player.c` before the ignore check).
+- **AirPlay → zone end to end** (`--airplay`, 2026-10-15, iPhone → One S):
+  music audible; delay from a track change on the iPhone to sound in the
+  room ~2 s by ear (owner's estimate, not measured); volume changes via the
+  hook → `SetVolume` heard "immediately".
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station

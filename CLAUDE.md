@@ -74,6 +74,42 @@ make clean          # remove bin/, dist/, coverage.out
   to `changelog.md` in the same commit; `make release` and the release
   workflow read both.
 
+## Token use
+
+Set by the owner on 2026-10-14 ("Gehe effektiv mit den Token um"),
+modelled on go-fabric's rules (SukramJ/go-fabric#116).
+
+- **Read slices, not files.** `sed -n a,bp`, `grep -n` with a tight
+  pattern and `head`; a whole file only when the task is the file. Never
+  re-read what is already in context; cite the earlier read.
+- **Reference repos are read by name.** go-mtec2mqtt (project setup) and
+  go-fabric (licence, Matter) are the specification for what they cover:
+  read the named file or the `grep` hit, not the tree.
+- **Probe devices once, then work from captures.** A measurement goes to
+  the git-ignored `/captures/` with one scripted call and is cited from
+  there; probe again only when the question is new or the device state
+  may have changed. Read-only probes need no confirmation; anything that
+  changes device state needs the owner's go-ahead for a named room.
+- **Logs by their summary.** `make check` and CI are read through a
+  filter (`grep -v` the known noise, `tail`); open a full log only on
+  failure, with `grep` for `FAIL`, `DATA RACE`, `_test.go:` and the
+  error strings — never `cat`. A CI job log is fetched once to a file
+  and grepped.
+- **One turn, every independent call.** Reads, checks and background
+  starts that do not depend on each other go out together; a wait is
+  `gh pr checks --watch` or an `until` loop, not polling by hand.
+- **Short artefacts.** Commit messages and PR bodies name what changed
+  and how it was verified, not prose; status messages to the owner are
+  short, outcome first, in German.
+- **Skip what cannot have changed.** No `make check` rerun for a
+  docs-only change, no device probe for a code change that does not
+  touch the wire — say what was skipped and why.
+- **Edit by script.** Several replacements in several files are one
+  scripted call with asserted anchors, not a chain of interactive edits.
+- **Agents read what the brief names.** A delegated agent gets the file
+  list and the sources in the brief, reads those, and reports in a fixed
+  shape; it does not survey the tree. Two agents only on disjoint paths.
+
 ## Raumfeld protocol — what has been measured
 
 Read-only probes on 2026-10-14 against a Cinebar Lux acting as host, with

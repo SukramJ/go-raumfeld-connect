@@ -117,8 +117,17 @@ func (t *target) save(ctx context.Context, log *slog.Logger) (*saved, error) {
 		return nil, err
 	}
 	s := &saved{media: media, volume: vol, power: t.zone.Room.PowerState}
+	// A room we put into a zone is restored to its power state from before
+	// that. Once (2026-10-15, right after the app dissolved a group) it read
+	// empty, and the room stayed ACTIVE after restore; a later ungroup by
+	// dropRoomJob kept powerState throughout (polled every 100 ms for 10 s).
+	// Without a value, keep the state read in the new zone before playing.
 	if t.formed != nil {
-		s.power = t.formed.PowerState
+		if t.formed.PowerState != "" {
+			s.power = t.formed.PowerState
+		} else {
+			log.Warn("play.power_unknown", slog.String("room", t.formed.Name), slog.String("using", s.power))
+		}
 	}
 	log.Info("play.orig", slog.String("uri", s.media.CurrentURI), slog.Int("volume", s.volume), slog.String("power", s.power))
 	return s, nil

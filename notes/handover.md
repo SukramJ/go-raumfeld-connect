@@ -104,8 +104,10 @@ in Apple Home / Alexa / Google Home. No cloud.
    without restoring it (restore + immediate takeover left the zone
    TRANSITIONING; hand-off reached PLAYING in 0.81 s, measured
    2026-10-15). Observed once: a room that had just left a group was
-   saved with an empty powerState and stayed ACTIVE after restore — not
-   investigated.
+   saved with an empty powerState and stayed ACTIVE after restore; not
+   reproduced (dropRoomJob on a grouped room: powerState present at every
+   100 ms poll). The bridge now falls back to the power state read in the
+   new zone and logs `play.power_unknown`.
 6. `script/install.sh` (modelled on go-mtec2mqtt's installer): builds
    nqptp 1.2.9 and shairport-sync 5.6, installs the binary (release or
    `BINARY=`), asks host and rooms, writes a hardened systemd unit.

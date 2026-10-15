@@ -1,3 +1,14 @@
+# Version 0.2.1 (2026-10-15)
+
+## What's Changed
+
+### Fixed
+
+- **A room the bridge put into a zone returns to standby.** Its power
+  state from before is restored at the end; once it read empty and the
+  room stayed `ACTIVE`. The bridge now falls back to the state read in the
+  new zone and logs `play.power_unknown`.
+
 # Version 0.2.0 (2026-10-15)
 
 ## What's Changed

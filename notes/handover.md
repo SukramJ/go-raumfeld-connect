@@ -76,8 +76,7 @@ in Apple Home / Alexa / Google Home. No cloud.
    be reachable from the speakers like the stream port.
 5. shairport-sync: stdout arrives at playback pace, but writes nothing
    during pause and does not end on stop (measured, see `CLAUDE.md`).
-   Several AirPlay 2 instances (one per zone) on one host with one nqptp:
-   not verified.
+   Two AirPlay 2 instances on one nqptp: work concurrently (measured).
 6. AAC passthrough (only relevant for an own receiver): does a zone play a
    live AAC stream? Not measured.
 7. How Apple Home / Alexa render a Matter Speaker: not measured.
@@ -93,7 +92,12 @@ in Apple Home / Alexa / Google Home. No cloud.
    (Ubuntu's 4.3.7 package lacks AirPlay 2) with `--with-airplay-2
    --with-pipe --with-stdout`, run from the build tree; nqptp 1.2.9
    installed as a systemd service.
-4. Implement a `stream.Source` reading from
+4. Done 2026-10-15: `--airplay <room>` (`internal/airplay`,
+   `stream.Live`) plays AirPlay 2 on a zone, with the iPhone volume
+   mapped to the zone (`--max-volume`). Open: one receiver per zone in a
+   daemon, zone start/stop on AirPlay session begin/end instead of
+   streaming silence, the Debian LXC install script.
+5. Originally planned: implement a `stream.Source` reading from
    shairport-sync, one instance per zone, and map volume / start / stop to
    the zone (`SetVolume`, `Play`, `Stop`). The source must fill gaps with
    silence at playback pace; end of playback comes from shairport-sync's

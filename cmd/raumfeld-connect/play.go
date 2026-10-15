@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/SukramJ/go-raumfeld-connect/internal/airplay"
 	"github.com/SukramJ/go-raumfeld-connect/internal/host"
 	"github.com/SukramJ/go-raumfeld-connect/internal/stream"
 	"github.com/SukramJ/go-raumfeld-connect/internal/upnp"
@@ -22,15 +23,19 @@ import (
 type playOptions struct {
 	host      string
 	room      string
-	duration  time.Duration
+	duration  time.Duration // 0 = until ctx is cancelled
 	port      int
 	advertise string
 	volume    int // -1 = leave unchanged
+
+	volumes   <-chan float64 // AirPlay volume changes to apply to the zone, may be nil
+	maxVolume int            // zone volume at full AirPlay volume
 }
 
-// playTone streams a paced test tone to the room's zone and restores the
-// zone's URI, metadata, volume and standby state afterwards.
-func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
+// play streams src to the room's zone, for o.duration or until ctx is
+// cancelled, and restores the zone's URI, metadata, volume and standby
+// state afterwards.
+func play(ctx context.Context, log *slog.Logger, o playOptions, src stream.Source) error {
 	hc := &http.Client{Timeout: 5 * time.Second}
 	c, err := host.New("http://"+net.JoinHostPort(o.host, strconv.Itoa(host.DefaultPort)), hc)
 	if err != nil {
@@ -60,7 +65,7 @@ func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
 
 	srv := &http.Server{
 		Addr:              net.JoinHostPort("", strconv.Itoa(o.port)),
-		Handler:           stream.NewHandler(stream.NewTone(440, 0.1, o.duration), log),
+		Handler:           stream.NewHandler(src, log),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
@@ -102,9 +107,12 @@ func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
 
 	var last string
 	deadline := start.Add(o.duration + 2*time.Second)
-	for time.Now().Before(deadline) {
+	for o.duration == 0 || time.Now().Before(deadline) {
 		ti, err := upnp.GetTransportInfo(ctx, hc, z.Transport)
 		if err != nil {
+			if o.duration == 0 && ctx.Err() != nil {
+				return nil
+			}
 			return err
 		}
 		if ti.State != last {
@@ -112,7 +120,14 @@ func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
 			last = ti.State
 		}
 		select {
+		case v := <-o.volumes:
+			zv := airplay.ZoneVolume(v, o.maxVolume)
+			err := upnp.SetVolume(ctx, hc, z.Rendering, zv)
+			log.Info("play.volume", slog.Float64("airplay", v), slog.Int("zone", zv), slog.Any("err", err))
 		case <-ctx.Done():
+			if o.duration == 0 {
+				return nil
+			}
 			return ctx.Err()
 		case <-time.After(250 * time.Millisecond):
 		}

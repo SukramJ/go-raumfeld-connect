@@ -132,3 +132,37 @@ func TestSessionFromLocation(t *testing.T) {
 		t.Error("empty Location: want error")
 	}
 }
+
+func TestZoneMembershipCalls(t *testing.T) {
+	t.Parallel()
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prefix := "/" + testSession + "/"
+		if !strings.HasPrefix(r.URL.Path, prefix) {
+			w.Header().Set("Location", prefix+strings.TrimPrefix(r.URL.Path, "/"))
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		got = append(got, strings.TrimPrefix(r.URL.Path, prefix)+"?"+r.URL.RawQuery)
+	}))
+	t.Cleanup(srv.Close)
+	c, err := New(srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	const room = "uuid:04d2d203-0000-0000-0000-000000000000"
+	if err := c.ConnectRoomToNewZone(ctx, room); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DropRoom(ctx, room); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"connectRoomsToZone?roomUDNs=uuid%3A04d2d203-0000-0000-0000-000000000000",
+		"dropRoomJob?roomUDN=uuid%3A04d2d203-0000-0000-0000-000000000000",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("requests = %q, want %q", got, want)
+	}
+}

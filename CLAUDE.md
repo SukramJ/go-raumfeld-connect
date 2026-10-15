@@ -27,7 +27,7 @@ stage.
 
 ```
 doc.go                 module doc; license_header_test.go guards the licence header
-cmd/raumfeld-connect/  entry point; --host prints zones/renderer state; --play-tone <room> streams a test tone, --airplay <room> bridges AirPlay 2 to the zone; both restore the zone
+cmd/raumfeld-connect/  entry point; --host prints zones/renderer state; --play-tone <room> streams a test tone, --airplay <room,…> bridges AirPlay 2 per room (zone formed if needed); both restore the zone
 internal/airplay/      shairport-sync subprocess (stdout PCM) and its volume hook
 internal/host/         Raumfeld host HTTP API client (session handling, getZones, listDevices)
 internal/upnp/         UPnP device description + SOAP client, measured read and write wrappers
@@ -129,8 +129,15 @@ device before code depends on it.
   A request without the prefix answers `307` to an absolute URL
   `/<new-session>/<path>`; an arbitrary, never-issued UUID as prefix is
   accepted (200).
-  Not yet tested: long-polling with `updateID`, and any state-changing host
-  API call (e.g. zone membership).
+  An unknown call answers `307` with `Location: PageMissing` (→ 404).
+  **Zone membership** (measured 2026-10-15 on an unassigned room):
+  `connectRoomsToZone?roomUDNs=<room UDN>` (colon raw or `%3A`) answers
+  200 with an empty body and the room appears in a new zone (renderer
+  found ~0.75 s later); `dropRoomJob?roomUDN=<room UDN>` answers 200,
+  empty, and the room is unassigned again. Standby goes through the zone
+  renderer, so `EnterManualStandby` before `dropRoomJob`.
+  Not yet tested: long-polling with `updateID`, `connectRoomsToZone` with
+  `zoneUDN` or several rooms.
 - **UPnP ports are dynamic.** Discover via `listDevices` or SSDP; never
   hard-code a port. Unicast `M-SEARCH` to the host answered; the One S did
   not answer unicast `M-SEARCH`.

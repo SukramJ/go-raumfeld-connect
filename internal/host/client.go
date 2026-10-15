@@ -186,3 +186,21 @@ func (c *Client) ListDevices(ctx context.Context) (*DeviceList, error) {
 	dl.UpdateID = updateID
 	return &dl, nil
 }
+
+// ConnectRoomToNewZone puts the room into a zone of its own. Measured
+// 2026-10-15 on an unassigned room: connectRoomsToZone with only roomUDNs
+// answered 200 with an empty body, and getZones then listed a new zone
+// holding the room. Moving a room into an existing zone (zoneUDN) is not
+// measured.
+func (c *Client) ConnectRoomToNewZone(ctx context.Context, roomUDN string) error {
+	_, _, err := c.get(ctx, "connectRoomsToZone?roomUDNs="+url.QueryEscape(roomUDN))
+	return err
+}
+
+// DropRoom takes the room out of its zone. Measured 2026-10-15:
+// dropRoomJob answered 200 with an empty body, and getZones listed the
+// room as unassigned again.
+func (c *Client) DropRoom(ctx context.Context, roomUDN string) error {
+	_, _, err := c.get(ctx, "dropRoomJob?roomUDN="+url.QueryEscape(roomUDN))
+	return err
+}

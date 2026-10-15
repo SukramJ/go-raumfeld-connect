@@ -30,7 +30,8 @@ make check   # vet + fmt-check + lint + test
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Contributions follow the
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE), the same
+licence as [`go-fabric`](https://github.com/SukramJ/go-fabric). Contributions follow the
 [AI contribution policy](AI_POLICY.md).
 
 Raumfeld and Teufel are trademarks of Lautsprecher Teufel GmbH. This project

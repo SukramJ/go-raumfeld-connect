@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-// Copyright (C) 2026 SukramJ
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 SukramJ.
 
 // Package version exposes build metadata injected at link time via
 // -ldflags. The defaults (Version=dev / Commit=none / BuildDate=

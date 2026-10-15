@@ -1,4 +1,5 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2026 SukramJ.
 # go-raumfeld-connect — developer Makefile
 #
 # Tabs are required by GNU make. The whitespace rules below pin sane
@@ -41,7 +42,7 @@ RELEASE_TARGETS  ?= linux/amd64 linux/arm64 linux/arm darwin/arm64
 # I packaging" answer. Override via `make release RELEASE_VERSION=...`
 # for ad-hoc dry runs.
 RELEASE_VERSION  ?= $(shell awk -F'"' '/^[[:space:]]*Version = /{print $$2; exit}' internal/version/version.go)
-RELEASE_PAYLOAD  := README.md LICENSE changelog.md
+RELEASE_PAYLOAD  := README.md LICENSE NOTICE changelog.md
 
 .PHONY: help
 help: ## show this help

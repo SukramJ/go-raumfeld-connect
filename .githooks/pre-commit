@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# SPDX-License-Identifier: MIT
-# Copyright (C) 2026 SukramJ
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2026 SukramJ.
 #
 # Pre-commit hook: refuse direct commits on protected branches.
 #

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-// Copyright (C) 2026 SukramJ
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 SukramJ.
 
 // Package upnp is a minimal UPnP client: it fetches device descriptions and
 // invokes SOAP actions. It knows nothing Raumfeld-specific beyond what the

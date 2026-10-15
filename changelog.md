@@ -2,6 +2,12 @@
 
 ## What's Changed
 
+### Changed
+
+- Licence changed from MIT to Apache-2.0, matching `go-fabric`: `LICENSE`,
+  new `NOTICE`, and the SPDX header of every source file;
+  `license_header_test.go` enforces the header on every Go file.
+
 ### Added
 
 - Project scaffold: Makefile, golangci-lint config, git hooks, CI (lint,

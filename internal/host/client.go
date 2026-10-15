@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-// Copyright (C) 2026 SukramJ
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 SukramJ.
 
 // Package host is a read-only client for the Raumfeld host's HTTP API
 // (tcp/47365 on the device acting as host).

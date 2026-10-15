@@ -65,3 +65,12 @@ func EnterAutomaticStandby(ctx context.Context, hc *http.Client, svc Service, ro
 	_, err := Call(ctx, hc, svc, "EnterAutomaticStandby", instance0, Arg{Name: "Room", Value: roomUDN})
 	return err
 }
+
+// EnterManualStandby puts the room with the given UDN into manual standby.
+// Its SCPD takes InstanceID and Room, like EnterAutomaticStandby; measured
+// 2026-10-15: a zone in MANUAL_STANDBY answers Play with transport status
+// "Please turn on a device." until LeaveStandby.
+func EnterManualStandby(ctx context.Context, hc *http.Client, svc Service, roomUDN string) error {
+	_, err := Call(ctx, hc, svc, "EnterManualStandby", instance0, Arg{Name: "Room", Value: roomUDN})
+	return err
+}

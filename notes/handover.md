@@ -94,9 +94,11 @@ in Apple Home / Alexa / Google Home. No cloud.
    installed as a systemd service.
 4. Done 2026-10-15: `--airplay <room>` (`internal/airplay`,
    `stream.Live`) plays AirPlay 2 on a zone, with the iPhone volume
-   mapped to the zone (`--max-volume`). Open: one receiver per zone in a
-   daemon, zone start/stop on AirPlay session begin/end instead of
-   streaming silence, the Debian LXC install script.
+   mapped to the zone (`--max-volume`); the zone is taken over only while
+   an AirPlay session is active and restored after it (incl. manual
+   standby). Open: one receiver per zone in a daemon, putting a room
+   without zone back into one (host API, not measured), the Debian LXC
+   install script.
 5. Originally planned: implement a `stream.Source` reading from
    shairport-sync, one instance per zone, and map volume / start / stop to
    the zone (`SetVolume`, `Play`, `Stop`). The source must fill gaps with

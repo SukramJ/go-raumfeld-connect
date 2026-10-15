@@ -1,4 +1,4 @@
-# Version 0.1.0 (unreleased)
+# Version 0.1.0 (2026-10-15)
 
 ## What's Changed
 
@@ -31,3 +31,16 @@
   standby afterwards.
 - `raumfeld-connect --host <addr>` prints the zone configuration and each
   zone renderer's volume, mute, transport state and current URI.
+- AirPlay 2 input: `raumfeld-connect --host <addr> --airplay "<room>,…"`
+  runs one shairport-sync (AirPlay 2, stdout backend) per room and streams
+  it to the room's zone (`internal/airplay`, `stream.Live` with silence for
+  pauses). The zone is taken over only while an AirPlay session is active
+  and restored afterwards (URI, metadata, volume, automatic or manual
+  standby); the sender's volume drives the zone (`--max-volume`). A room in
+  no zone gets a zone of its own for the session (`connectRoomsToZone`,
+  `dropRoomJob`). Flags: `--airplay-port`, `--airplay-idle`,
+  `--airplay-buffer`, `--shairport-sync`, `--debug`.
+- `script/install.sh`: Debian/LXC installer — builds nqptp 1.2.9 and
+  shairport-sync 5.6, installs a release (or `BINARY=`) under
+  `/opt/go-raumfeld-connect`, asks host and rooms, and registers a hardened
+  systemd service; README quickstart with the one-liner.

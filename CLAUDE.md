@@ -34,7 +34,7 @@ internal/upnp/         UPnP device description + SOAP client, measured read and 
 internal/stream/       live PCM-as-WAV HTTP handler (one client at a time), a paced test-tone Source and Live (paced, gap-filling)
 internal/zone/         room name → zone renderer (getZones + listDevices + description)
 internal/version/      build-info package (Version/Commit/BuildDate, set via ldflags)
-script/                extract-release-notes.sh
+script/                extract-release-notes.sh; install.sh (Debian/LXC: builds nqptp + shairport-sync, installs the service)
 notes/handover.md      state, decisions, open items and next steps (handover of 2026-10-15)
 .github/workflows/     ci.yml (lint/test/build/audit), codeql.yml, release-on-tag.yml, dependabot-auto-merge.yml
 ```

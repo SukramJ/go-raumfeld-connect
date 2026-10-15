@@ -99,7 +99,18 @@ in Apple Home / Alexa / Google Home. No cloud.
    standby). `--airplay "A,B"` runs one receiver per room (ports from
    `--airplay-port`); a room in no zone gets a zone of its own for the
    session (`connectRoomsToZone` / `dropRoomJob`, measured). Open: rooms
-   grouped in one zone compete for it; the Debian LXC install script.
+   grouped in one zone compete for it.
+6. `script/install.sh` (modelled on go-mtec2mqtt's installer): builds
+   nqptp 1.2.9 and shairport-sync 5.6, installs the binary (release or
+   `BINARY=`), asks host and rooms, writes a hardened systemd unit.
+   Checked here: shellcheck, `systemd-analyze verify`, and the unit as a
+   user service (arguments, nqptp under ProtectSystem/PrivateTmp, hooks,
+   playback). Not run as root on Debian yet — first run in the Proxmox
+   LXC; no GitHub release exists yet, so `BINARY=` for now.
+7. Observed once under the user-service test: ~4 s dropped and ~5 s
+   silence filled within 40 s (bursty stdout around a resume or volume
+   change?), clean afterwards; `--airplay-buffer` (500 ms) may be too
+   small. Not investigated.
 5. Originally planned: implement a `stream.Source` reading from
    shairport-sync, one instance per zone, and map volume / start / stop to
    the zone (`SetVolume`, `Play`, `Stop`). The source must fill gaps with

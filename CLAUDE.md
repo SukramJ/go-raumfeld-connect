@@ -226,7 +226,8 @@ device before code depends on it.
   shairport-sync passes nqptp only the RTSP peer address
   (`set_client_as_ptp_clock`, rtsp.c), so it logged "No NQPTP master
   clock", output nothing, and the zone played silence while volume hooks
-  worked. Disabling IPv6 in the container fixed it. On the dev host (same
+  worked. Disabling IPv6 in the container fixed it; the sysctl.d setting
+  survives a reboot of the unprivileged LXC. On the dev host (same
   /64 as the iPhone) it worked with IPv6 on — cause of the difference not
   verified.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,

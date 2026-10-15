@@ -203,13 +203,14 @@ func (t *target) wake(ctx context.Context, log *slog.Logger) error {
 	return fmt.Errorf("room %q not ACTIVE 5 s after LeaveStandby", t.zone.Room.Name)
 }
 
-// watch logs transport state changes until deadline.
-func (t *target) watch(ctx context.Context, log *slog.Logger, start, deadline time.Time) error {
+// watch logs transport state changes until deadline and returns the last
+// state seen.
+func (t *target) watch(ctx context.Context, log *slog.Logger, start, deadline time.Time) (string, error) {
 	var last string
 	for time.Now().Before(deadline) {
 		ti, err := upnp.GetTransportInfo(ctx, t.hc, t.zone.Transport)
 		if err != nil {
-			return err
+			return last, err
 		}
 		if ti.State != last {
 			log.Info("play.state", slog.String("state", ti.State), slog.Duration("after", time.Since(start).Round(10*time.Millisecond)))
@@ -217,11 +218,11 @@ func (t *target) watch(ctx context.Context, log *slog.Logger, start, deadline ti
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return last, ctx.Err()
 		case <-time.After(250 * time.Millisecond):
 		}
 	}
-	return nil
+	return last, nil
 }
 
 // serve runs the stream server until the returned stop is called.
@@ -258,7 +259,8 @@ func playTone(ctx context.Context, log *slog.Logger, o playOptions) error {
 	if err := t.start(ctx, log, o.volume); err != nil {
 		return err
 	}
-	return t.watch(ctx, log, start, start.Add(o.duration+2*time.Second))
+	_, err = t.watch(ctx, log, start, start.Add(o.duration+2*time.Second))
+	return err
 }
 
 // localAddrTowards returns this machine's address on the route to target,

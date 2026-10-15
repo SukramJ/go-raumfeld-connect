@@ -1,3 +1,24 @@
+# Version 0.2.0 (2026-10-15)
+
+## What's Changed
+
+### Added
+
+- **Rooms grouped in one Raumfeld zone share it.** The first AirPlay
+  session takes the zone over; another receiver of the same zone waits
+  (`airplay.zone_busy`). When the owner's session ends while another one
+  is active, the zone is handed over as it is and restored only at the
+  very end — restoring it and taking it over again at once had left the
+  zone hanging in `TRANSITIONING`.
+- **Dropped audio is logged.** `airplay.dropped` (info level) reports
+  audio discarded beyond `--airplay-buffer` while a zone plays it, to
+  measure how often gaps happen before the buffer is changed.
+
+### Changed
+
+- A takeover that has not reached `PLAYING` after 5 s logs
+  `airplay.not_playing`.
+
 # Version 0.1.1 (2026-10-15)
 
 ## What's Changed

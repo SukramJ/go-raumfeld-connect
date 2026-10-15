@@ -7,7 +7,8 @@
 //
 // The bridge itself is not implemented yet. With --host the binary reads
 // the zone configuration and every zone renderer's state, prints it, and
-// exits; it changes nothing on the devices.
+// exits; it changes nothing on the devices. With --play-tone it streams a
+// paced test tone to one room's zone and restores the zone afterwards.
 package main
 
 import (
@@ -28,7 +29,12 @@ import (
 
 func main() {
 	showVersion := flag.Bool("version", false, "print build info and exit")
-	hostAddr := flag.String("host", "", "Raumfeld host address (IP or name); read zones and renderer state, print, exit")
+	hostAddr := flag.String("host", "", "Raumfeld host address (IP or name); alone: read zones and renderer state, print, exit")
+	room := flag.String("play-tone", "", "with --host: stream a test tone to this room's zone, then restore the zone")
+	toneFor := flag.Duration("tone-duration", 10*time.Second, "test tone length")
+	port := flag.Int("stream-port", 59317, "TCP port the renderer fetches the stream from")
+	advertise := flag.String("advertise", "", "address the renderer reaches this machine on (default: route towards --host)")
+	volume := flag.Int("volume", -1, "zone volume during the test tone, 0..100 (default: unchanged)")
 	flag.Parse()
 
 	if *showVersion {
@@ -44,9 +50,19 @@ func main() {
 		logger.Warn("raumfeld-connect.not_implemented")
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	err := inspect(ctx, *hostAddr)
-	cancel()
+	var err error
+	if *room != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), *toneFor+30*time.Second)
+		err = playTone(ctx, logger, playOptions{
+			host: *hostAddr, room: *room, duration: *toneFor,
+			port: *port, advertise: *advertise, volume: *volume,
+		})
+		cancel()
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err = inspect(ctx, *hostAddr)
+		cancel()
+	}
 	if err != nil {
 		logger.Error("raumfeld-connect.inspect", slog.String("err", err.Error()))
 		os.Exit(1)

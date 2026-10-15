@@ -22,5 +22,12 @@
   first: `SetVolume` (0..100 per SCPD), `SetAVTransportURI`, `Play`,
   `Stop`, `LeaveStandby`, `EnterAutomaticStandby`. A `live`-tagged test
   round-trips a real renderer's volume (`RAUMFELD_LIVE_RENDERER`).
+- `internal/stream`: endless PCM-as-WAV HTTP handler (one client at a time,
+  a new request takes over) and a paced sine-tone Source; `internal/zone`
+  resolves a room to its zone renderer.
+- `raumfeld-connect --host <addr> --play-tone <room>` streams a test tone
+  to the room's zone (`--tone-duration`, `--stream-port` default 59317,
+  `--advertise`, `--volume`) and restores URI, metadata, volume and
+  standby afterwards.
 - `raumfeld-connect --host <addr>` prints the zone configuration and each
   zone renderer's volume, mute, transport state and current URI.

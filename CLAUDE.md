@@ -27,9 +27,11 @@ stage.
 
 ```
 doc.go                 module doc; license_header_test.go guards the licence header
-cmd/raumfeld-connect/  entry point (main.go); --host <addr> prints zones and renderer state, read-only
+cmd/raumfeld-connect/  entry point; --host prints zones/renderer state; --play-tone <room> streams a test tone, then restores the zone
 internal/host/         Raumfeld host HTTP API client (session handling, getZones, listDevices)
-internal/upnp/         UPnP device description + SOAP client, read-only AVTransport/RenderingControl wrappers
+internal/upnp/         UPnP device description + SOAP client, measured read and write wrappers
+internal/stream/       live PCM-as-WAV HTTP handler (one client at a time) and a paced test-tone Source
+internal/zone/         room name → zone renderer (getZones + listDevices + description)
 internal/version/      build-info package (Version/Commit/BuildDate, set via ldflags)
 script/                extract-release-notes.sh
 .github/workflows/     ci.yml (lint/test/build/audit), codeql.yml, release-on-tag.yml, dependabot-auto-merge.yml
@@ -170,6 +172,10 @@ device before code depends on it.
   `PLAYING` took ~1.5 s for MP3 and ~0.6 s for the others. The zone
   renderer's `GetProtocolInfo` sink list includes `audio/mpeg`, `audio/wav`,
   `audio/flac`, `audio/mp4`. Files end in `STOPPED` on their own.
+- **Chunked live stream works**: the host requests with HTTP/1.1, so Go's
+  `net/http` answers an endless stream with `Transfer-Encoding: chunked`;
+  the zone plays it. `Play` → `PLAYING` took ~1.7 s (two runs) against
+  ~0.6 s for the unchunked Python test server — cause not investigated.
 - **Read-ahead**: fed as fast as it reads, the renderer pulled audio until it
   held ~15.5 s ahead of real time, then read at real-time rate; `PLAYING`
   after ~1.5 s. Fed at real-time pace it cannot read ahead, and `PLAYING`

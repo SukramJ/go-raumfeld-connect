@@ -76,9 +76,11 @@ die()   { printf '%s  ✗ %s%s\n'      "${RED}${BOLD}" "$*" "${RESET}" >&2; exit
 command -v systemctl >/dev/null || die "systemctl not found — this installer requires systemd"
 command -v apt-get >/dev/null || die "apt-get not found — this installer targets Debian"
 
-# shellcheck source=/dev/null
-. /etc/os-release
-[ "${ID:-}" = "debian" ] || warn "written for Debian 13, this is ${PRETTY_NAME:-unknown} — continuing"
+# Read os-release in a subshell: sourcing it here would overwrite VERSION
+# (Debian sets VERSION="13 (trixie)").
+os_id=$(. /etc/os-release && printf '%s' "${ID:-}")
+os_name=$(. /etc/os-release && printf '%s' "${PRETTY_NAME:-unknown}")
+[ "$os_id" = "debian" ] || warn "written for Debian 13, this is ${os_name} — continuing"
 
 # Architecture mapping — only the targets the release pipeline builds.
 case "$(uname -m)" in
@@ -129,7 +131,7 @@ ok "packages installed, avahi-daemon running"
 # fetch_tag <url> <dir> <tag>: shallow clone of exactly that tag.
 fetch_tag() {
 	rm -rf "$2"
-	git clone -q --depth 1 --branch "$3" "$1" "$2"
+	git -c advice.detachedHead=false clone -q --depth 1 --branch "$3" "$1" "$2"
 }
 
 install -d -m 0755 "$SRC_DIR"

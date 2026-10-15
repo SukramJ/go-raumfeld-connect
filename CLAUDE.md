@@ -34,6 +34,7 @@ internal/stream/       live PCM-as-WAV HTTP handler (one client at a time) and a
 internal/zone/         room name → zone renderer (getZones + listDevices + description)
 internal/version/      build-info package (Version/Commit/BuildDate, set via ldflags)
 script/                extract-release-notes.sh
+notes/handover.md      state, decisions, open items and next steps (handover of 2026-10-15)
 .github/workflows/     ci.yml (lint/test/build/audit), codeql.yml, release-on-tag.yml, dependabot-auto-merge.yml
 ```
 

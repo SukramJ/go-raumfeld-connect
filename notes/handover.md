@@ -74,9 +74,10 @@ in Apple Home / Alexa / Google Home. No cloud.
    (a room outside every zone has no zone renderer).
 4. UPnP eventing (GENA `SUBSCRIBE`) instead of polling — callback port must
    be reachable from the speakers like the stream port.
-5. shairport-sync: does its pipe/stdout output arrive at playback pace?
-   Several AirPlay 2 instances (one per zone) on one host with one nqptp?
-   Neither verified.
+5. shairport-sync: stdout arrives at playback pace, but writes nothing
+   during pause and does not end on stop (measured, see `CLAUDE.md`).
+   Several AirPlay 2 instances (one per zone) on one host with one nqptp:
+   not verified.
 6. AAC passthrough (only relevant for an own receiver): does a zone play a
    live AAC stream? Not measured.
 7. How Apple Home / Alexa render a Matter Speaker: not measured.
@@ -88,10 +89,12 @@ in Apple Home / Alexa / Google Home. No cloud.
 2. Move the UniFi rule's destination to the Linux host; check reachability
    with `raumfeld-connect --host <host-ip>` and, on a released room,
    `--play-tone <room>`.
-3. Build shairport-sync with AirPlay 2 and run nqptp (root, ports 319/320,
-   per shairport-sync's `AIRPLAY2.md`); configure PCM output to a pipe or
-   stdout — take the exact settings from shairport-sync's documentation,
-   not from memory.
-4. Measure item 5 above, then implement a `stream.Source` reading from
+3. Done 2026-10-15: shairport-sync 5.6 built from source in `~/src`
+   (Ubuntu's 4.3.7 package lacks AirPlay 2) with `--with-airplay-2
+   --with-pipe --with-stdout`, run from the build tree; nqptp 1.2.9
+   installed as a systemd service.
+4. Implement a `stream.Source` reading from
    shairport-sync, one instance per zone, and map volume / start / stop to
-   the zone (`SetVolume`, `Play`, `Stop`).
+   the zone (`SetVolume`, `Play`, `Stop`). The source must fill gaps with
+   silence at playback pace; end of playback comes from shairport-sync's
+   log or metadata, not from stdout.

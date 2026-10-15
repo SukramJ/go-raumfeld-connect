@@ -182,6 +182,15 @@ device before code depends on it.
   after ~1.5 s. Fed at real-time pace it cannot read ahead, and `PLAYING`
   came after ~0.6 s. The audible delay was not measured — `PLAYING` is a
   transport state, not sound.
+- **shairport-sync stdout** (measured 2026-10-15, shairport-sync 5.6 built
+  with `--with-airplay-2 --with-stdout`, nqptp 1.2.9, iPhone as source):
+  configured `output_rate = 44100; output_format = "S16_LE";
+  output_channels = 2;`, it transcoded AirPlay 2 input `AAC/48000/F24/2` to
+  that format. stdout arrives at playback pace (0.97–1.03 × 176400 B/s per
+  second) after a 1.8× first second; resuming from pause gave one 1.6×
+  second. During pause it writes **nothing** (no silence), and after
+  "Playback stopped" stdout stays open with no EOF. One instance only;
+  several instances on one nqptp not tested.
 - **Vendor devices**: `RaumfeldDevice:1` (SetupService: info, network,
   firmware update), `ConfigDevice:1` (ConfigService: preferences), and a
   `MediaServer:1` with an extended ContentDirectory (queues, station
